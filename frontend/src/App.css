@@ -1,0 +1,8 @@
+#root {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #eef2ff 0%, #f8fafc 60%, #ffffff 100%);
+}
+
+button {
+  font-family: inherit;
+}
