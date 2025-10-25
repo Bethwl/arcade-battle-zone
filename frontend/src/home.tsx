@@ -7,6 +7,7 @@ import { CONTRACT_ABI, CONTRACT_ADDRESS, GAME_STATE_LABELS, MOVE_LABELS, ZERO_AD
 import { useEthersSigner } from './hooks/useEthersSigner';
 import { useZamaInstance } from './hooks/useZamaInstance';
 import './styles/Home.css';
+import type { Address } from 'viem';
 
 type Game = {
   id: number;
@@ -28,6 +29,22 @@ type PlayerState = {
   revealedMove: number;
   encryptedMove: string;
 };
+
+type NumericValue = number | bigint;
+
+type RawGameResponse = readonly [
+  `0x${string}`,
+  NumericValue,
+  NumericValue,
+  NumericValue,
+  NumericValue,
+  readonly `0x${string}`[],
+  readonly `0x${string}`[],
+  readonly NumericValue[],
+  bigint,
+];
+
+type RawPlayerState = readonly [boolean, boolean, boolean, NumericValue, string];
 
 const SHORT_ADDRESS_CHARS = 6;
 const REFRESH_INTERVAL_MS = 15000;
@@ -73,7 +90,7 @@ function useGames(refreshKey: number, enabled: boolean) {
             abi: CONTRACT_ABI,
             functionName: 'getGame',
             args: [BigInt(index)],
-          })) as unknown[];
+          })) as RawGameResponse;
 
           const [
             host,
@@ -85,17 +102,7 @@ function useGames(refreshKey: number, enabled: boolean) {
             winners,
             revealedMoves,
             revealRequestId,
-          ] = data as [
-            string,
-            number | bigint,
-            number | bigint,
-            number | bigint,
-            number | bigint,
-            readonly string[],
-            readonly string[],
-            readonly (number | bigint)[],
-            bigint,
-          ];
+          ] = data;
 
           return {
             id: index,
@@ -106,7 +113,7 @@ function useGames(refreshKey: number, enabled: boolean) {
             state: Number(state),
             players: Array.from(players),
             winners: Array.from(winners),
-            revealedMoves: Array.from(revealedMoves).map(value => Number(value)),
+            revealedMoves: Array.from(revealedMoves, value => Number(value)),
             revealRequestId,
           } satisfies Game;
         }),
@@ -134,23 +141,17 @@ function usePlayerState(gameId: number | null, address: string | undefined, refr
         address: CONTRACT_ADDRESS,
         abi: CONTRACT_ABI,
         functionName: 'getPlayerState',
-        args: [BigInt(gameId), address],
-      })) as unknown[];
+        args: [BigInt(gameId), address as Address],
+      })) as RawPlayerState;
 
-      const [joined, moveSubmitted, moveRevealed, revealedMove, encryptedMove] = data as [
-        boolean,
-        boolean,
-        boolean,
-        number | bigint,
-        string,
-      ];
+      const [joined, moveSubmitted, moveRevealed, revealedMove, encryptedMove] = data;
 
       return {
         joined,
         moveSubmitted,
         moveRevealed,
         revealedMove: Number(revealedMove),
-        encryptedMove,
+        encryptedMove: encryptedMove as string,
       };
     },
   });
@@ -379,7 +380,7 @@ export default function Home() {
 
       {!isContractConfigured && (
         <div className="status-banner warning">
-          <strong>Contract address missing.</strong> Set <code>VITE_RPS_CONTRACT_ADDRESS</code> in your environment.
+          <strong>Contract address missing.</strong> Update <code>CONTRACT_ADDRESS</code> in <code>src/config/contracts.ts</code>.
         </div>
       )}
 
