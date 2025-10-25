@@ -1,9 +1,9 @@
 import type { Address } from 'viem';
 
-const DEFAULT_CONTRACT_ADDRESS = '0x0000000000000000000000000000000000000000' as Address;
+// const DEFAULT_CONTRACT_ADDRESS = '0xF98630cCC3daf698146F7402588FD270072F2b3E' as Address;
 
-export const CONTRACT_ADDRESS: Address = DEFAULT_CONTRACT_ADDRESS;
-export const ZERO_ADDRESS = DEFAULT_CONTRACT_ADDRESS;
+export const CONTRACT_ADDRESS: Address = "0xF98630cCC3daf698146F7402588FD270072F2b3E";
+// export const ZERO_ADDRESS = DEFAULT_CONTRACT_ADDRESS;
 
 export const GAME_STATE_LABELS = ['Open', 'Ready', 'Started', 'Revealing', 'Revealed'] as const;
 

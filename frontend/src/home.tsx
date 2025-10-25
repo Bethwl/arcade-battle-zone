@@ -3,7 +3,7 @@ import { useAccount, usePublicClient } from 'wagmi';
 import { useQuery } from '@tanstack/react-query';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { Contract } from 'ethers';
-import { CONTRACT_ABI, CONTRACT_ADDRESS, GAME_STATE_LABELS, MOVE_LABELS, ZERO_ADDRESS } from './config/contracts';
+import { CONTRACT_ABI, CONTRACT_ADDRESS, GAME_STATE_LABELS, MOVE_LABELS } from './config/contracts';
 import { useEthersSigner } from './hooks/useEthersSigner';
 import { useZamaInstance } from './hooks/useZamaInstance';
 import './styles/Home.css';
@@ -68,7 +68,7 @@ function useGames(refreshKey: number, enabled: boolean) {
     refetchInterval: REFRESH_INTERVAL_MS,
     staleTime: REFRESH_INTERVAL_MS,
     queryFn: async (): Promise<Game[]> => {
-      if (!publicClient || CONTRACT_ADDRESS === ZERO_ADDRESS) {
+      if (!publicClient) {
         return [];
       }
 
@@ -129,7 +129,7 @@ function usePlayerState(gameId: number | null, address: string | undefined, refr
 
   return useQuery({
     queryKey: ['playerState', gameId, address, refreshKey],
-    enabled: !!publicClient && CONTRACT_ADDRESS !== ZERO_ADDRESS && !!address && gameId !== null,
+    enabled: !!publicClient  && !!address && gameId !== null,
     refetchInterval: REFRESH_INTERVAL_MS,
     staleTime: REFRESH_INTERVAL_MS,
     queryFn: async (): Promise<PlayerState> => {
@@ -172,7 +172,7 @@ export default function Home() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const isContractConfigured = CONTRACT_ADDRESS !== ZERO_ADDRESS;
+  const isContractConfigured = true;
 
   const {
     data: games = [],
