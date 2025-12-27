@@ -7,6 +7,7 @@ import { CONTRACT_ABI, CONTRACT_ADDRESS, GAME_STATE_LABELS, MOVE_LABELS } from '
 import { useEthersSigner } from './hooks/useEthersSigner';
 import { useZamaInstance } from './hooks/useZamaInstance';
 import { useArcadeSound } from './hooks/useArcadeSound';
+import { useBotPlayer } from './hooks/useBotPlayer';
 import { ArcadeButton } from './components/ArcadeButton';
 import { MoveSelector } from './components/MoveSelector';
 import './styles/Home.css';
@@ -167,6 +168,13 @@ export default function Home() {
   const signerPromise = useEthersSigner();
   const { instance, isLoading: encryptionLoading, error: encryptionError } = useZamaInstance();
   const { play, toggleMute, isMuted } = useArcadeSound();
+  const {
+    botConfig,
+    toggleBots,
+    setBotCount,
+    autoFillGameWithBots,
+    autoSubmitBotMoves
+  } = useBotPlayer(instance);
 
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedGameId, setSelectedGameId] = useState<number | null>(null);
@@ -250,10 +258,32 @@ export default function Home() {
       const contract = new Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
       const tx = await contract.createGame(maxPlayers);
       setStatusMessage('Creating game… awaiting confirmation.');
-      await tx.wait();
+      const receipt = await tx.wait();
+
+      // Get the new game ID from events
+      const gameCreatedEvent = receipt.logs
+        .map((log: any) => {
+          try {
+            return contract.interface.parseLog(log);
+          } catch {
+            return null;
+          }
+        })
+        .find((parsed: any) => parsed?.name === 'GameCreated');
+
+      const newGameId = gameCreatedEvent ? BigInt(gameCreatedEvent.args.gameId) : null;
+
       setStatusMessage('Game created successfully.');
       play('created');
       triggerRefresh();
+
+      // Auto-fill with bots if enabled
+      if (botConfig.enabled && newGameId !== null) {
+        setStatusMessage('Game created! Filling with bots...');
+        setTimeout(() => {
+          autoFillGameWithBots(newGameId, maxPlayers, 1); // 1 = current human player
+        }, 2000);
+      }
     } catch (error) {
       console.error('Failed to create game:', error);
       setErrorMessage(error instanceof Error ? error.message : 'Failed to create game.');
@@ -261,7 +291,7 @@ export default function Home() {
     } finally {
       setActionState(null);
     }
-  }, [getSigner, isConnected, isContractConfigured, maxPlayers, play, resetStatus, triggerRefresh]);
+  }, [getSigner, isConnected, isContractConfigured, maxPlayers, play, resetStatus, triggerRefresh, botConfig, autoFillGameWithBots]);
 
   const handleJoinGame = useCallback(async () => {
     play('click');
@@ -376,6 +406,17 @@ export default function Home() {
       setStatusMessage('Move submitted. Waiting for reveal.');
       play('submit');
       triggerRefresh();
+
+      // Trigger bot moves after human player submits
+      if (botConfig.enabled && botConfig.autoPlay && selectedGame) {
+        setTimeout(() => {
+          autoSubmitBotMoves(
+            BigInt(selectedGame.id),
+            selectedGame.currentPlayers,
+            selectedGame.movesSubmitted + 1 // +1 because we just submitted
+          );
+        }, 1000);
+      }
     } catch (error) {
       console.error('Failed to submit move:', error);
       setErrorMessage(error instanceof Error ? error.message : 'Failed to submit move.');
@@ -393,6 +434,8 @@ export default function Home() {
     selectedGame,
     selectedMove,
     triggerRefresh,
+    botConfig,
+    autoSubmitBotMoves,
   ]);
 
   // Detect winner reveal and play sound
@@ -547,6 +590,45 @@ export default function Home() {
                 onChange={event => setMaxPlayers(Number(event.target.value))}
                 className="arcade-input"
               />
+
+              <div className="bot-controls" style={{ marginTop: '1rem', padding: '0.75rem', background: 'rgba(0, 255, 255, 0.05)', border: '2px solid var(--neon-cyan)', borderRadius: '4px' }}>
+                <label className="arcade-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={botConfig.enabled}
+                    onChange={(e) => {
+                      play('click');
+                      toggleBots(e.target.checked);
+                    }}
+                    style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                  />
+                  🤖 FILL WITH BOTS
+                </label>
+                {botConfig.enabled && (
+                  <div style={{ marginTop: '0.5rem' }}>
+                    <label className="arcade-label" htmlFor="botCount" style={{ fontSize: '0.8rem' }}>
+                      BOT COUNT:
+                    </label>
+                    <input
+                      id="botCount"
+                      type="number"
+                      min={1}
+                      max={3}
+                      value={botConfig.count}
+                      onChange={(e) => {
+                        play('click');
+                        setBotCount(Number(e.target.value));
+                      }}
+                      className="arcade-input"
+                      style={{ fontSize: '0.9rem', padding: '0.4rem' }}
+                    />
+                    <p style={{ fontSize: '0.7rem', color: 'var(--neon-cyan)', marginTop: '0.5rem', opacity: 0.7 }}>
+                      Bots auto-join & play. You pay gas.
+                    </p>
+                  </div>
+                )}
+              </div>
+
               <ArcadeButton
                 onClick={handleCreateGame}
                 disabled={isBusy || !isConnected || encryptionLoading}
