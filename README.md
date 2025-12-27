@@ -8,7 +8,7 @@
 
 **A Fully Homomorphic Encrypted Blockchain Gaming Experience**
 
-[🎯 Live Demo](https://your-vercel-url.vercel.app) | [📖 Documentation](#documentation) | [🎮 Play Now](#getting-started)
+[🎯 Live Demo](https://frontend-virid-six-29.vercel.app) | [📖 Documentation](#documentation) | [🎮 Play Now](#getting-started)
 
 </div>
 
