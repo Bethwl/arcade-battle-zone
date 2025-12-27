@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { useAccount, usePublicClient } from 'wagmi';
 import { useQuery } from '@tanstack/react-query';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
@@ -6,6 +6,9 @@ import { Contract } from 'ethers';
 import { CONTRACT_ABI, CONTRACT_ADDRESS, GAME_STATE_LABELS, MOVE_LABELS } from './config/contracts';
 import { useEthersSigner } from './hooks/useEthersSigner';
 import { useZamaInstance } from './hooks/useZamaInstance';
+import { useArcadeSound } from './hooks/useArcadeSound';
+import { ArcadeButton } from './components/ArcadeButton';
+import { MoveSelector } from './components/MoveSelector';
 import './styles/Home.css';
 import type { Address } from 'viem';
 
@@ -163,6 +166,7 @@ export default function Home() {
   const { address, isConnected } = useAccount();
   const signerPromise = useEthersSigner();
   const { instance, isLoading: encryptionLoading, error: encryptionError } = useZamaInstance();
+  const { play, toggleMute, isMuted } = useArcadeSound();
 
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedGameId, setSelectedGameId] = useState<number | null>(null);
@@ -171,6 +175,8 @@ export default function Home() {
   const [actionState, setActionState] = useState<ActionState>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const prevWinnersRef = useRef<string[]>([]);
 
   const isContractConfigured = true;
 
@@ -220,16 +226,20 @@ export default function Home() {
   }, [signerPromise]);
 
   const handleCreateGame = useCallback(async () => {
+    play('click');
     if (!isConnected) {
       setErrorMessage('Connect your wallet to create a game.');
+      play('error');
       return;
     }
     if (!isContractConfigured) {
       setErrorMessage('Contract address is not configured.');
+      play('error');
       return;
     }
     if (maxPlayers < 2 || maxPlayers > 4) {
       setErrorMessage('Player count must be between 2 and 4.');
+      play('error');
       return;
     }
 
@@ -242,23 +252,28 @@ export default function Home() {
       setStatusMessage('Creating game… awaiting confirmation.');
       await tx.wait();
       setStatusMessage('Game created successfully.');
+      play('created');
       triggerRefresh();
     } catch (error) {
       console.error('Failed to create game:', error);
       setErrorMessage(error instanceof Error ? error.message : 'Failed to create game.');
+      play('error');
     } finally {
       setActionState(null);
     }
-  }, [getSigner, isConnected, isContractConfigured, maxPlayers, resetStatus, triggerRefresh]);
+  }, [getSigner, isConnected, isContractConfigured, maxPlayers, play, resetStatus, triggerRefresh]);
 
   const handleJoinGame = useCallback(async () => {
+    play('click');
     if (!selectedGame) return;
     if (!isConnected) {
       setErrorMessage('Connect your wallet to join a game.');
+      play('error');
       return;
     }
     if (!isContractConfigured) {
       setErrorMessage('Contract address is not configured.');
+      play('error');
       return;
     }
 
@@ -271,23 +286,28 @@ export default function Home() {
       setStatusMessage('Joining game… awaiting confirmation.');
       await tx.wait();
       setStatusMessage('Joined game successfully.');
+      play('join');
       triggerRefresh();
     } catch (error) {
       console.error('Failed to join game:', error);
       setErrorMessage(error instanceof Error ? error.message : 'Failed to join game.');
+      play('error');
     } finally {
       setActionState(null);
     }
-  }, [getSigner, isConnected, isContractConfigured, resetStatus, selectedGame, triggerRefresh]);
+  }, [getSigner, isConnected, isContractConfigured, play, resetStatus, selectedGame, triggerRefresh]);
 
   const handleStartGame = useCallback(async () => {
+    play('click');
     if (!selectedGame) return;
     if (!isConnected) {
       setErrorMessage('Connect your wallet to start the game.');
+      play('error');
       return;
     }
     if (!isContractConfigured) {
       setErrorMessage('Contract address is not configured.');
+      play('error');
       return;
     }
 
@@ -300,31 +320,38 @@ export default function Home() {
       setStatusMessage('Starting game… awaiting confirmation.');
       await tx.wait();
       setStatusMessage('Game started. Players can now submit moves.');
+      play('start');
       triggerRefresh();
     } catch (error) {
       console.error('Failed to start game:', error);
       setErrorMessage(error instanceof Error ? error.message : 'Failed to start game.');
+      play('error');
     } finally {
       setActionState(null);
     }
-  }, [getSigner, isConnected, isContractConfigured, resetStatus, selectedGame, triggerRefresh]);
+  }, [getSigner, isConnected, isContractConfigured, play, resetStatus, selectedGame, triggerRefresh]);
 
   const handleSubmitMove = useCallback(async () => {
+    play('click');
     if (!selectedGame) return;
     if (selectedMove === null) {
       setErrorMessage('Select a move before submitting.');
+      play('error');
       return;
     }
     if (!instance) {
       setErrorMessage('Encryption service is not ready yet.');
+      play('error');
       return;
     }
     if (!address) {
       setErrorMessage('Connect your wallet to submit a move.');
+      play('error');
       return;
     }
     if (!isContractConfigured) {
       setErrorMessage('Contract address is not configured.');
+      play('error');
       return;
     }
 
@@ -347,10 +374,12 @@ export default function Home() {
       await tx.wait();
       setSelectedMove(null);
       setStatusMessage('Move submitted. Waiting for reveal.');
+      play('submit');
       triggerRefresh();
     } catch (error) {
       console.error('Failed to submit move:', error);
       setErrorMessage(error instanceof Error ? error.message : 'Failed to submit move.');
+      play('error');
     } finally {
       setActionState(null);
     }
@@ -359,249 +388,288 @@ export default function Home() {
     getSigner,
     instance,
     isContractConfigured,
+    play,
     resetStatus,
     selectedGame,
     selectedMove,
     triggerRefresh,
   ]);
 
+  // Detect winner reveal and play sound
+  useEffect(() => {
+    if (selectedGame && selectedGame.winners.length > 0 && prevWinnersRef.current.length === 0) {
+      play('winner');
+    }
+    prevWinnersRef.current = selectedGame?.winners ?? [];
+  }, [selectedGame?.winners, play, selectedGame]);
+
+  const handleMoveSelect = useCallback((move: number) => {
+    play('select');
+    setSelectedMove(move);
+  }, [play]);
+
+  const handleGameSelect = useCallback((gameId: number) => {
+    play('click');
+    setSelectedGameId(gameId);
+  }, [play]);
+
   const isBusy = actionState !== null;
   const isRefreshing = gamesFetching || playerFetching || actionState !== null;
 
   return (
-    <div className="home-container">
-      <header className="home-header">
-        <div>
-          <h1 className="home-title">FHE Rock · Paper · Scissors</h1>
-          <p className="home-subtitle">Create private games, submit encrypted moves, and reveal winners on-chain.</p>
+    <div className="arcade-cabinet">
+      <header className="arcade-marquee">
+        <div className="marquee-content">
+          <h1 className="arcade-title">FHE ROCK•PAPER•SCISSORS</h1>
+          <p className="arcade-subtitle">ENCRYPTED MOVES • ONCHAIN REVEALS</p>
         </div>
-        <ConnectButton />
+        <div className="arcade-controls">
+          <button
+            className="mute-toggle"
+            onClick={toggleMute}
+            aria-label={isMuted ? 'Unmute' : 'Mute'}
+          >
+            {isMuted ? '🔇' : '🔊'}
+          </button>
+          <ConnectButton />
+        </div>
       </header>
 
-      {!isContractConfigured && (
-        <div className="status-banner warning">
-          <strong>Contract address missing.</strong> Update <code>CONTRACT_ADDRESS</code> in <code>src/config/contracts.ts</code>.
-        </div>
-      )}
+      <div className="arcade-body">
 
-      {encryptionLoading && (
-        <div className="status-banner info">Initializing Zama encryption services…</div>
-      )}
-
-      {encryptionError && (
-        <div className="status-banner error">{encryptionError}</div>
-      )}
-
-      {statusMessage && (
-        <div className="status-banner success">{statusMessage}</div>
-      )}
-
-      {errorMessage && (
-        <div className="status-banner error">{errorMessage}</div>
-      )}
-
-      <section className="controls-grid">
-        <div className="card">
-          <h2 className="card-title">Create a Game</h2>
-          <p className="card-description">
-            Host a new encrypted Rock-Paper-Scissors match. Each seat will be filled by one player.
-          </p>
-          <label className="form-label" htmlFor="maxPlayers">
-            Players per game
-          </label>
-          <input
-            id="maxPlayers"
-            type="number"
-            min={2}
-            max={4}
-            value={maxPlayers}
-            onChange={event => setMaxPlayers(Number(event.target.value))}
-            className="number-input"
-          />
-          <button
-            className="primary-button"
-            onClick={handleCreateGame}
-            disabled={isBusy || !isConnected || encryptionLoading}
-          >
-            {actionState === 'create' ? 'Creating…' : 'Create Game'}
-          </button>
-          <button
-            className="secondary-button"
-            onClick={triggerRefresh}
-            disabled={isRefreshing}
-          >
-            Refresh Games
-          </button>
-        </div>
-
-        <div className="card">
-          <h2 className="card-title">Available Games</h2>
-          {gamesLoading ? (
-            <p className="placeholder-text">Loading games…</p>
-          ) : games.length === 0 ? (
-            <p className="placeholder-text">No games yet. Create the first one!</p>
-          ) : (
-            <ul className="games-list">
-              {games.map(game => {
-                const isSelected = selectedGame?.id === game.id;
-                return (
-                  <li key={game.id}>
-                    <button
-                      className={`game-item ${isSelected ? 'selected' : ''}`}
-                      onClick={() => setSelectedGameId(game.id)}
-                      disabled={isBusy}
-                    >
-                      <div className="game-item-row">
-                        <span className="game-id">Game #{game.id}</span>
-                        <span className={`badge state-${GAME_STATE_LABELS[game.state]?.toLowerCase() ?? 'unknown'}`}>
-                          {GAME_STATE_LABELS[game.state] ?? 'Unknown'}
-                        </span>
-                      </div>
-                      <div className="game-item-row muted">
-                        <span>{game.currentPlayers}/{game.maxPlayers} players</span>
-                        <span>{game.movesSubmitted} moves</span>
-                      </div>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
-      </section>
-
-      {selectedGame ? (
-        <section className="card">
-          <div className="game-header">
-            <h2 className="card-title">Game #{selectedGame.id}</h2>
-            <span className={`badge state-${GAME_STATE_LABELS[selectedGame.state]?.toLowerCase() ?? 'unknown'}`}>
-              {GAME_STATE_LABELS[selectedGame.state] ?? 'Unknown'}
-            </span>
+        {/* Status Banners */}
+        {!isContractConfigured && (
+          <div className="status-banner warning">
+            <strong>CONTRACT ERROR:</strong> Update <code>CONTRACT_ADDRESS</code>
           </div>
+        )}
 
-          <div className="game-grid">
-            <div>
-              <h3 className="section-heading">Host</h3>
-              <p className="monospace">{shortenAddress(selectedGame.host)}</p>
-            </div>
-            <div>
-              <h3 className="section-heading">Players</h3>
-              <p>{selectedGame.currentPlayers} / {selectedGame.maxPlayers}</p>
-            </div>
-            <div>
-              <h3 className="section-heading">Moves</h3>
-              <p>{selectedGame.movesSubmitted} submitted</p>
-            </div>
-            <div>
-              <h3 className="section-heading">Reveal request</h3>
-              <p className="monospace">
-                {selectedGame.revealRequestId === 0n ? '—' : selectedGame.revealRequestId.toString()}
-              </p>
-            </div>
-          </div>
+        {encryptionLoading && (
+          <div className="status-banner info">INITIALIZING ENCRYPTION...</div>
+        )}
 
-          <div className="players-grid">
-            {selectedGame.players.map((player, index) => {
-              const revealedMove = selectedGame.revealedMoves[index];
-              const isWinner = selectedGame.winners.includes(player);
-              return (
-                <div key={player} className={`player-card ${isWinner ? 'winner' : ''}`}>
-                  <div className="player-header">
-                    <span className="monospace">{shortenAddress(player)}</span>
-                    {isWinner && <span className="badge winner-badge">Winner</span>}
+        {encryptionError && (
+          <div className="status-banner error">{encryptionError}</div>
+        )}
+
+        {statusMessage && (
+          <div className="status-banner success">{statusMessage}</div>
+        )}
+
+        {errorMessage && (
+          <div className="status-banner error">{errorMessage}</div>
+        )}
+
+        {/* CRT Screen - Main Game Display */}
+        <section className="crt-screen">
+          <div className="crt-bezel">
+            <div className="crt-content">
+
+{selectedGame ? (
+                <>
+                  <div className="game-header-crt">
+                    <h2 className="crt-title">GAME #{selectedGame.id}</h2>
+                    <span className={`badge state-${GAME_STATE_LABELS[selectedGame.state]?.toLowerCase() ?? 'unknown'}`}>
+                      {GAME_STATE_LABELS[selectedGame.state] ?? 'Unknown'}
+                    </span>
                   </div>
-                  <p className="player-move">
-                    {selectedGame.state === 4 && revealedMove
-                      ? formatMove(revealedMove)
-                      : playerState?.joined && address === player && playerState.moveSubmitted
-                        ? 'Move submitted'
-                        : 'Awaiting move'}
-                  </p>
+
+                  <div className="game-stats-grid">
+                    <div className="stat-box">
+                      <span className="stat-label">HOST</span>
+                      <span className="stat-value monospace">{shortenAddress(selectedGame.host)}</span>
+                    </div>
+                    <div className="stat-box">
+                      <span className="stat-label">PLAYERS</span>
+                      <span className="stat-value">{selectedGame.currentPlayers}/{selectedGame.maxPlayers}</span>
+                    </div>
+                    <div className="stat-box">
+                      <span className="stat-label">MOVES</span>
+                      <span className="stat-value">{selectedGame.movesSubmitted}</span>
+                    </div>
+                    <div className="stat-box">
+                      <span className="stat-label">REVEAL ID</span>
+                      <span className="stat-value monospace">
+                        {selectedGame.revealRequestId === 0n ? '—' : `#${selectedGame.revealRequestId.toString().slice(0, 8)}`}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="players-grid">
+                    {selectedGame.players.map((player, index) => {
+                      const revealedMove = selectedGame.revealedMoves[index];
+                      const isWinner = selectedGame.winners.includes(player);
+                      return (
+                        <div key={player} className={`player-card ${isWinner ? 'winner' : ''}`}>
+                          <div className="player-header">
+                            <span className="monospace player-address">{shortenAddress(player)}</span>
+                            {isWinner && <span className="badge winner-badge">★ WINNER ★</span>}
+                          </div>
+                          <p className="player-move">
+                            {selectedGame.state === 4 && revealedMove
+                              ? formatMove(revealedMove)
+                              : playerState?.joined && address === player && playerState.moveSubmitted
+                                ? '✓ SUBMITTED'
+                                : '⏳ WAITING'}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : (
+                <div className="crt-placeholder">
+                  <div className="insert-coin">INSERT COIN</div>
+                  <p className="crt-message">SELECT A GAME TO BEGIN</p>
                 </div>
-              );
-            })}
-          </div>
-
-          <div className="actions-row">
-            <button
-              className="secondary-button"
-              onClick={handleJoinGame}
-              disabled={
-                isBusy ||
-                !isConnected ||
-                !selectedGame ||
-                playerState?.joined ||
-                selectedGame.state !== 0 ||
-                selectedGame.currentPlayers >= selectedGame.maxPlayers
-              }
-            >
-              {playerState?.joined ? 'Joined' : actionState === 'join' ? 'Joining…' : 'Join Game'}
-            </button>
-
-            <button
-              className="secondary-button"
-              onClick={handleStartGame}
-              disabled={
-                isBusy ||
-                !isConnected ||
-                !selectedGame ||
-                address?.toLowerCase() !== selectedGame.host.toLowerCase() ||
-                selectedGame.state !== 1
-              }
-            >
-              {actionState === 'start' ? 'Starting…' : 'Start Game'}
-            </button>
-          </div>
-
-          <div className="move-section">
-            <h3 className="section-heading">Submit Encrypted Move</h3>
-            <p className="helper-text">
-              Choose Rock (1), Paper (2), or Scissors (3). Your choice is encrypted locally before being sent on-chain.
-            </p>
-            <div className="move-selector">
-              {[1, 2, 3].map(move => (
-                <button
-                  key={move}
-                  className={`move-button ${selectedMove === move ? 'selected' : ''}`}
-                  onClick={() => setSelectedMove(move)}
-                  disabled={isBusy}
-                  type="button"
-                >
-                  <span className="move-number">{move}</span>
-                  <span>{formatMove(move)}</span>
-                </button>
-              ))}
+              )}
             </div>
-            <button
-              className="primary-button"
-              onClick={handleSubmitMove}
-              disabled={
-                isBusy ||
-                !isConnected ||
-                !playerState?.joined ||
-                playerState.moveSubmitted ||
-                selectedGame.state !== 2 ||
-                selectedMove === null ||
-                encryptionLoading
-              }
-            >
-              {playerState?.moveSubmitted
-                ? 'Move Submitted'
-                : actionState === 'submit'
-                  ? 'Submitting…'
-                  : 'Submit Move'}
-            </button>
-            {playerStateLoading && <p className="helper-text">Checking your player status…</p>}
+            <div className="crt-scanlines"></div>
           </div>
         </section>
-      ) : (
-        <section className="card">
-          <h2 className="card-title">Game Details</h2>
-          <p className="placeholder-text">
-            Select a game to see its encrypted moves, player seats, and reveal status.
-          </p>
-        </section>
-      )}
+
+        {/* Control Panels */}
+        <div className="control-deck">
+          {/* Left Panel: Create Game */}
+          <aside className="left-panel arcade-panel">
+            <h2 className="panel-label">PLAYER 1</h2>
+            <div className="panel-content">
+              <h3 className="panel-title">CREATE GAME</h3>
+              <label className="arcade-label" htmlFor="maxPlayers">
+                PLAYERS:
+              </label>
+              <input
+                id="maxPlayers"
+                type="number"
+                min={2}
+                max={4}
+                value={maxPlayers}
+                onChange={event => setMaxPlayers(Number(event.target.value))}
+                className="arcade-input"
+              />
+              <ArcadeButton
+                onClick={handleCreateGame}
+                disabled={isBusy || !isConnected || encryptionLoading}
+                loading={actionState === 'create'}
+                color="cyan"
+              >
+                {actionState === 'create' ? 'CREATING' : 'CREATE GAME'}
+              </ArcadeButton>
+              <ArcadeButton
+                variant="secondary"
+                onClick={() => { play('click'); triggerRefresh(); }}
+                disabled={isRefreshing}
+              >
+                REFRESH
+              </ArcadeButton>
+            </div>
+          </aside>
+
+          {/* Center Panel: Move Controls */}
+          <section className="center-panel arcade-panel">
+            <h2 className="panel-label">CONTROLS</h2>
+            <div className="panel-content">
+              <h3 className="panel-title">SELECT MOVE</h3>
+              <MoveSelector
+                selectedMove={selectedMove}
+                onSelectMove={handleMoveSelect}
+                disabled={isBusy}
+              />
+              <div className="action-buttons">
+                <ArcadeButton
+                  onClick={handleJoinGame}
+                  disabled={
+                    isBusy ||
+                    !isConnected ||
+                    !selectedGame ||
+                    playerState?.joined ||
+                    selectedGame.state !== 0 ||
+                    selectedGame.currentPlayers >= selectedGame.maxPlayers
+                  }
+                  color="green"
+                  variant="secondary"
+                >
+                  {playerState?.joined ? 'JOINED' : actionState === 'join' ? 'JOINING' : 'JOIN GAME'}
+                </ArcadeButton>
+                <ArcadeButton
+                  onClick={handleStartGame}
+                  disabled={
+                    isBusy ||
+                    !isConnected ||
+                    !selectedGame ||
+                    address?.toLowerCase() !== selectedGame.host.toLowerCase() ||
+                    selectedGame.state !== 1
+                  }
+                  color="yellow"
+                  variant="secondary"
+                >
+                  {actionState === 'start' ? 'STARTING' : 'START GAME'}
+                </ArcadeButton>
+                <ArcadeButton
+                  onClick={handleSubmitMove}
+                  disabled={
+                    isBusy ||
+                    !isConnected ||
+                    !playerState?.joined ||
+                    playerState?.moveSubmitted ||
+                    selectedGame?.state !== 2 ||
+                    selectedMove === null ||
+                    encryptionLoading
+                  }
+                  loading={actionState === 'submit'}
+                  color="magenta"
+                >
+                  {playerState?.moveSubmitted
+                    ? 'SUBMITTED'
+                    : actionState === 'submit'
+                      ? 'SUBMITTING'
+                      : 'SUBMIT MOVE'}
+                </ArcadeButton>
+              </div>
+              {playerStateLoading && <p className="helper-text">CHECKING STATUS...</p>}
+            </div>
+          </section>
+
+          {/* Right Panel: Games List */}
+          <aside className="right-panel arcade-panel">
+            <h2 className="panel-label">ARCADE</h2>
+            <div className="panel-content">
+              <h3 className="panel-title">GAMES LIST</h3>
+              {gamesLoading ? (
+                <p className="placeholder-text">LOADING...</p>
+              ) : games.length === 0 ? (
+                <p className="placeholder-text">NO GAMES FOUND</p>
+              ) : (
+                <ul className="games-list">
+                  {games.map(game => {
+                    const isSelected = selectedGame?.id === game.id;
+                    return (
+                      <li key={game.id}>
+                        <button
+                          className={`game-item ${isSelected ? 'selected' : ''}`}
+                          onClick={() => handleGameSelect(game.id)}
+                          disabled={isBusy}
+                        >
+                          <div className="game-item-row">
+                            <span className="game-id">#{game.id}</span>
+                            <span className={`badge state-${GAME_STATE_LABELS[game.state]?.toLowerCase() ?? 'unknown'}`}>
+                              {GAME_STATE_LABELS[game.state] ?? 'N/A'}
+                            </span>
+                          </div>
+                          <div className="game-item-row muted">
+                            <span>{game.currentPlayers}/{game.maxPlayers} P</span>
+                            <span>{game.movesSubmitted} M</span>
+                          </div>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          </aside>
+        </div>
+      </div>
     </div>
   );
 }

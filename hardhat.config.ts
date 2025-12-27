@@ -16,9 +16,13 @@ import "./tasks/FHEROckPaperScissors";
 
 const INFURA_API_KEY = process.env.INFURA_API_KEY ?? "";
 const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY ?? "";
-const PRIVATE_KEY = process.env.PRIVATE_KEY ?? "";
-const SEPOLIA_RPC_URL = process.env.SEPOLIA_RPC_URL ?? (INFURA_API_KEY ? `https://sepolia.infura.io/v3/${INFURA_API_KEY}` : undefined);
-const SEPOLIA_ACCOUNTS = PRIVATE_KEY ? [PRIVATE_KEY] : undefined;
+const PRIVATE_KEY = process.env.PRIVATE_KEY ?? "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"; // Default hardhat key
+const SEPOLIA_RPC_URL = process.env.SEPOLIA_RPC_URL ?? (INFURA_API_KEY ? `https://sepolia.infura.io/v3/${INFURA_API_KEY}` : "https://sepolia.infura.io/v3/");
+const SEPOLIA_ACCOUNTS = PRIVATE_KEY ? [PRIVATE_KEY] : [];
+
+// Zama Network Configuration
+const ZAMA_RPC_URL = process.env.ZAMA_RPC_URL ?? "https://devnet.zama.ai";
+const ZAMA_ACCOUNTS = PRIVATE_KEY ? [PRIVATE_KEY] : [];
 
 const config: HardhatUserConfig = {
   defaultNetwork: "hardhat",
@@ -47,6 +51,11 @@ const config: HardhatUserConfig = {
       accounts: SEPOLIA_ACCOUNTS,
       chainId: 11155111,
       url: SEPOLIA_RPC_URL,
+    },
+    zama: {
+      accounts: ZAMA_ACCOUNTS,
+      chainId: 8009,
+      url: ZAMA_RPC_URL,
     },
   },
   paths: {

@@ -1,35 +1,41 @@
 {
-  "name": "fhevm-hardhat-template",
-  "description": "Hardhat-based template for developing FHEVM Solidity smart contracts",
-  "version": "0.1.0",
+  "name": "arcade-battle-zone",
+  "description": "Retro Arcade FHE Battle Zone - Privacy-First Blockchain Gaming with Fully Homomorphic Encryption",
+  "version": "1.0.0",
   "engines": {
     "node": ">=20",
     "npm": ">=7.0.0"
   },
   "license": "BSD-3-Clause-Clear",
-  "homepage": "https://github.com/zama-ai/fhevm-hardhat-template/README.md",
+  "homepage": "https://github.com/Bethwl/arcade-battle-zone#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/zama-ai/fhevm-hardhat-template.git"
+    "url": "git+https://github.com/Bethwl/arcade-battle-zone.git"
   },
   "keywords": [
+    "arcade",
+    "retro-gaming",
+    "fhe",
     "fhevm",
     "zama",
-    "eth",
+    "blockchain-game",
+    "privacy",
+    "encryption",
+    "rock-paper-scissors",
     "ethereum",
-    "dapps",
-    "wallet",
-    "web3",
-    "typescript",
-    "hardhat"
+    "sepolia",
+    "web3-gaming",
+    "dapp",
+    "typescript"
   ],
   "dependencies": {
-    "encrypted-types": "^0.0.4",
     "@fhevm/solidity": "^0.8.0",
-    "@zama-fhe/oracle-solidity": "^0.1.0"
+    "@zama-fhe/oracle-solidity": "^0.1.0",
+    "encrypted-types": "^0.0.4"
   },
   "devDependencies": {
     "@fhevm/hardhat-plugin": "^0.1.0",
+    "@fhevm/mock-utils": "^0.1.0",
     "@nomicfoundation/hardhat-chai-matchers": "^2.1.0",
     "@nomicfoundation/hardhat-ethers": "^3.1.0",
     "@nomicfoundation/hardhat-network-helpers": "^1.1.0",
@@ -45,6 +51,7 @@
     "chai": "^4.5.0",
     "chai-as-promised": "^8.0.1",
     "cross-env": "^7.0.3",
+    "dotenv": "^17.2.3",
     "eslint": "^8.57.1",
     "eslint-config-prettier": "^9.1.0",
     "ethers": "^6.15.0",
@@ -82,6 +89,7 @@
     "chain": "hardhat node --network hardhat --no-deploy",
     "deploy:localhost": "hardhat deploy --network localhost",
     "deploy:sepolia": "hardhat deploy --network sepolia",
+    "deploy:zama": "hardhat deploy --network zama",
     "verify:sepolia": "hardhat verify --network sepolia"
   },
   "overrides": {
@@ -99,6 +107,7 @@
     "axios@>=1.0.0 <1.8.2": ">=1.8.2",
     "axios@<0.29.1": ">=0.29.1",
     "cookie@<0.7.0": ">=0.7.0",
-    "minimatch": "^3.1.2"
+    "minimatch": "^3.1.2",
+    "zksync-web3": "npm:zksync-ethers@^5.0.0"
   }
 }

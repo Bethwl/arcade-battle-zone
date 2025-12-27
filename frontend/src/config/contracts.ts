@@ -2,7 +2,8 @@ import type { Address } from 'viem';
 
 // const DEFAULT_CONTRACT_ADDRESS = '0xF98630cCC3daf698146F7402588FD270072F2b3E' as Address;
 
-export const CONTRACT_ADDRESS: Address = "0xF98630cCC3daf698146F7402588FD270072F2b3E";
+// Deployed on Sepolia testnet
+export const CONTRACT_ADDRESS: Address = "0xf54c9c761495A2514606C1d412062544C0804014";
 // export const ZERO_ADDRESS = DEFAULT_CONTRACT_ADDRESS;
 
 export const GAME_STATE_LABELS = ['Open', 'Ready', 'Started', 'Revealing', 'Revealed'] as const;
